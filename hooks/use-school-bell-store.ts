@@ -2,8 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react"
 import type { Schedule, SchoolSettings, BellEvent } from "@/lib/types"
+import { supabase } from "@/lib/supabase-client"
 
 const STORAGE_KEY = "schoolbell-data"
+
+// Supabase single-row state (so all devices share the same data)
+const SUPABASE_TABLE = "school_bell_state"
+const SUPABASE_STATE_ID = "default"
 
 interface StoreData {
   schedules: Schedule[]
@@ -46,28 +51,161 @@ export function useSchoolBellStore() {
   const [settings, setSettings] = useState<SchoolSettings>(defaultSettings)
   const [isLoaded, setIsLoaded] = useState(false)
 
-  // Load from localStorage on mount
+  // Initial load: prefer Supabase, fall back to localStorage / defaults
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const data: StoreData = JSON.parse(stored)
-        setSchedules(data.schedules)
-        setSettings(data.settings)
+    let isCancelled = false
+
+    const load = async () => {
+      try {
+        // 1. Try Supabase if configured
+        if (supabase) {
+          const { data, error } = await supabase
+            .from(SUPABASE_TABLE)
+            .select("data")
+            .eq("id", SUPABASE_STATE_ID)
+            .maybeSingle()
+
+          if (error) {
+            // eslint-disable-next-line no-console
+            console.error("[Supabase] load error:", error.message)
+          }
+
+          if (!isCancelled && data?.data) {
+            const storeData = data.data as StoreData
+            setSchedules(storeData.schedules)
+            setSettings(storeData.settings)
+            setIsLoaded(true)
+            return
+          }
+        }
+
+        // 2. Fallback: localStorage
+        try {
+          const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null
+          if (stored) {
+            const parsed: StoreData = JSON.parse(stored)
+            if (!isCancelled) {
+              setSchedules(parsed.schedules)
+              setSettings(parsed.settings)
+              setIsLoaded(true)
+              return
+            }
+          }
+        } catch {
+          // eslint-disable-next-line no-console
+          console.error("Failed to load data from localStorage")
+        }
+
+        // 3. Defaults
+        if (!isCancelled) {
+          setSchedules([defaultSchedule])
+          setSettings(defaultSettings)
+          setIsLoaded(true)
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to load initial data:", err)
+        if (!isCancelled) {
+          setIsLoaded(true)
+        }
       }
-    } catch {
-      console.error("Failed to load data from localStorage")
     }
-    setIsLoaded(true)
+
+    load()
+
+    return () => {
+      isCancelled = true
+    }
   }, [])
 
-  // Save to localStorage on changes
+  // Save to Supabase + localStorage on changes
   useEffect(() => {
-    if (isLoaded) {
-      const data: StoreData = { schedules, settings }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    if (!isLoaded) return
+
+    const data: StoreData = { schedules, settings }
+
+    // Local cache (works even without Supabase)
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+      }
+    } catch {
+      // ignore
     }
+
+    // Persist to Supabase if configured
+    const saveToSupabase = async () => {
+      if (!supabase) return
+      try {
+        const { error } = await supabase.from(SUPABASE_TABLE).upsert(
+          {
+            id: SUPABASE_STATE_ID,
+            data,
+          },
+          { onConflict: "id" }
+        )
+
+        if (error) {
+          // eslint-disable-next-line no-console
+          console.error("[Supabase] save error:", error.message)
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("[Supabase] unexpected save error:", err)
+      }
+    }
+
+    void saveToSupabase()
   }, [schedules, settings, isLoaded])
+
+  // Realtime updates: listen for changes from other clients and update state
+  useEffect(() => {
+    if (!supabase) return
+
+    const channel = supabase
+      .channel("school-bell-sync")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: SUPABASE_TABLE,
+          filter: `id=eq.${SUPABASE_STATE_ID}`,
+        },
+        (payload) => {
+          const newData = (payload.new as { data?: StoreData } | null)?.data
+          if (!newData) return
+
+          setSchedules((prev) => {
+            // Avoid unnecessary re-renders if data is effectively the same
+            try {
+              if (JSON.stringify(prev) === JSON.stringify(newData.schedules)) {
+                return prev
+              }
+            } catch {
+              // ignore stringify errors
+            }
+            return newData.schedules
+          })
+
+          setSettings((prev) => {
+            try {
+              if (JSON.stringify(prev) === JSON.stringify(newData.settings)) {
+                return prev
+              }
+            } catch {
+              // ignore stringify errors
+            }
+            return newData.settings
+          })
+        }
+      )
+      .subscribe()
+
+    return () => {
+      void channel.unsubscribe()
+    }
+  }, [])
 
   const updateSettings = useCallback((newSettings: Partial<SchoolSettings>) => {
     setSettings((prev) => ({ ...prev, ...newSettings }))
@@ -132,6 +270,23 @@ export function useSchoolBellStore() {
     []
   )
 
+  const reorderBellsInSchedule = useCallback(
+    (scheduleId: string, fromIndex: number, toIndex: number) => {
+      setSchedules((prev) =>
+        prev.map((s) => {
+          if (s.id !== scheduleId) return s
+          const newBells = [...s.bells]
+          const [moved] = newBells.splice(fromIndex, 1)
+          // Clamp target index into range after removal
+          const targetIndex = Math.max(0, Math.min(newBells.length, toIndex))
+          newBells.splice(targetIndex, 0, moved)
+          return { ...s, bells: newBells }
+        })
+      )
+    },
+    []
+  )
+
   const getActiveSchedule = useCallback(() => {
     return schedules.find((s) => s.isActive) || schedules[0]
   }, [schedules])
@@ -148,6 +303,7 @@ export function useSchoolBellStore() {
     addBellToSchedule,
     updateBellInSchedule,
     deleteBellFromSchedule,
+    reorderBellsInSchedule,
     getActiveSchedule,
   }
 }

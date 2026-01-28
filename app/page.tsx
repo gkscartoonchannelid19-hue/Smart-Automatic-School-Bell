@@ -26,6 +26,7 @@ export default function SchoolBellApp() {
     addBellToSchedule,
     updateBellInSchedule,
     deleteBellFromSchedule,
+    reorderBellsInSchedule,
     getActiveSchedule,
   } = useSchoolBellStore()
 
@@ -133,6 +134,7 @@ export default function SchoolBellApp() {
               onAddBell={addBellToSchedule}
               onUpdateBell={updateBellInSchedule}
               onDeleteBell={deleteBellFromSchedule}
+              onReorderBells={reorderBellsInSchedule}
               onTestBell={handleTestBell}
             />
           </div>

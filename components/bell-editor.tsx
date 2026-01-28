@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import {
   Bell,
   Plus,
@@ -9,6 +9,8 @@ import {
   Volume2,
   VolumeX,
   Play,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -29,6 +31,7 @@ interface BellEditorProps {
   onAddBell: (scheduleId: string, bell: BellEvent) => void
   onUpdateBell: (scheduleId: string, bellId: string, updates: Partial<BellEvent>) => void
   onDeleteBell: (scheduleId: string, bellId: string) => void
+  onReorderBells: (scheduleId: string, fromIndex: number, toIndex: number) => void
   onTestBell: (duration: number) => void
 }
 
@@ -37,6 +40,7 @@ export function BellEditor({
   onAddBell,
   onUpdateBell,
   onDeleteBell,
+  onReorderBells,
   onTestBell,
 }: BellEditorProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -46,6 +50,9 @@ export function BellEditor({
     time: "08:00",
     duration: 3,
   })
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const dragFromIndexRef = useRef<number | null>(null)
+  const lastToIndexRef = useRef<number | null>(null)
 
   if (!schedule) {
     return (
@@ -60,9 +67,67 @@ export function BellEditor({
     )
   }
 
-  const sortedBells = [...schedule.bells].sort((a, b) =>
-    a.time.localeCompare(b.time)
-  )
+  // Use original order instead of sorting by time to preserve drag order
+  const bells = schedule.bells
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    dragFromIndexRef.current = index
+    lastToIndexRef.current = null
+    setDraggedIndex(index)
+    e.dataTransfer.effectAllowed = "move"
+    e.dataTransfer.setData("text/plain", index.toString())
+    // Required for Firefox and some browsers
+    e.dataTransfer.dropEffect = "move"
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "0.5"
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = "move"
+
+    const from = dragFromIndexRef.current
+    if (from === null || from === index) return
+
+    const row = e.currentTarget as HTMLElement
+    const rect = row.getBoundingClientRect()
+    const mid = rect.top + rect.height / 2
+    const mouseY = e.clientY
+
+    let toIndex: number
+    if (mouseY < mid) {
+      toIndex = index
+    } else {
+      toIndex = index + 1
+    }
+
+    // Only reorder when drop target actually changes (avoids flicker and repeated updates)
+    if (lastToIndexRef.current !== toIndex) {
+      lastToIndexRef.current = toIndex
+      onReorderBells(schedule.id, from, toIndex)
+      // After move, the dragged item is now at toIndex (or toIndex-1 if we inserted before)
+      dragFromIndexRef.current = toIndex
+    }
+  }
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setDraggedIndex(null)
+    dragFromIndexRef.current = null
+    lastToIndexRef.current = null
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = "1"
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDraggedIndex(null)
+    dragFromIndexRef.current = null
+    lastToIndexRef.current = null
+  }
 
   const openAddDialog = () => {
     setEditingBell(null)
@@ -122,7 +187,7 @@ export function BellEditor({
           </Button>
         </CardHeader>
         <CardContent>
-          {sortedBells.length === 0 ? (
+          {bells.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
               <Bell className="mx-auto h-12 w-12 opacity-50" />
               <p className="mt-2">No bells configured</p>
@@ -130,16 +195,56 @@ export function BellEditor({
             </div>
           ) : (
             <div className="space-y-2">
-              {sortedBells.map((bell) => (
+              {bells.map((bell, index) => (
                 <div
                   key={bell.id}
-                  className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragEnd={handleDragEnd}
+                  onDrop={handleDrop}
+                  className={`flex items-center gap-2 rounded-lg border p-3 transition-all select-none ${
                     bell.enabled
                       ? "border-border bg-card"
                       : "border-border/50 bg-muted/30"
-                  }`}
+                  } ${
+                    draggedIndex === index ? "opacity-50 scale-95" : ""
+                  } cursor-move hover:bg-muted/50 active:cursor-grabbing`}
                 >
-                  <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                  <div
+                    className="flex flex-col gap-0 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      disabled={index === 0}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onReorderBells(schedule.id, index, index - 1)
+                      }}
+                      title="Move up"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      disabled={index === bells.length - 1}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onReorderBells(schedule.id, index, index + 1)
+                      }}
+                      title="Move down"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing shrink-0" />
 
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                     <Bell
