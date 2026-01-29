@@ -224,3 +224,4 @@ For issues, questions, or feature requests, please open an issue on GitHub.
 ---
 
 **Built with ❤️ for schools and educational institutions**
+# Study
