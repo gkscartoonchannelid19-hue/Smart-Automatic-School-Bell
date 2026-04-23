@@ -4,8 +4,8 @@ import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'SchoolBell Pro - Automatic School Bell System',
-  description: 'Market-ready automatic school bell system with BBC Micro:bit integration. Manage schedules, ring bells automatically.',
+  title: 'Smart School Bell - Automatic School Bell System',
+  description: 'Smart School Bell system with ESP-32 integration. Manage schedules, ring bells automatically.',
   generator: 'v0.app',
   icons: {
     icon: [

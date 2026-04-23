@@ -36,7 +36,7 @@ export function Header({
             <Bell className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-foreground">SchoolBell Pro</h1>
+            <h1 className="text-xl font-semibold text-foreground">Smart School Bell</h1>
             <p className="text-sm text-muted-foreground">{schoolName}</p>
           </div>
         </div>
