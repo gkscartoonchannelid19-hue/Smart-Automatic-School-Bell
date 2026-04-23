@@ -115,47 +115,74 @@ export default function SchoolBellApp() {
         isConnecting={esp32.isConnecting}
       />
 
-      <main className="container mx-auto px-4 py-6">
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column - Clock & Today's Schedule */}
-          <div className="space-y-6">
-            <ClockDisplay
-              nextBell={nextBell}
-              onBellTrigger={handleBellTrigger}
-              bells={todaysBells}
-            />
-            <TodaysBells bells={todaysBells} />
+      <main className="min-h-[calc(100vh-4rem)] bg-gradient-to-br from-background via-background to-secondary/5">
+        <div className="container mx-auto px-4 py-8">
+          {/* Hero Clock Section */}
+          <div className="mb-8">
+            <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-8">
+              <ClockDisplay
+                nextBell={nextBell}
+                onBellTrigger={handleBellTrigger}
+                bells={todaysBells}
+              />
+            </div>
           </div>
 
-          {/* Middle Column - Bell Editor */}
-          <div className="lg:col-span-1">
-            <BellEditor
-              schedule={selectedSchedule}
-              onAddBell={addBellToSchedule}
-              onUpdateBell={updateBellInSchedule}
-              onDeleteBell={deleteBellFromSchedule}
-              onReorderBells={reorderBellsInSchedule}
-              onTestBell={handleTestBell}
-            />
-          </div>
+          {/* Main Content Grid */}
+          <div className="grid gap-8 lg:grid-cols-2">
+            {/* Left Column - Today's Bells & Bell Editor */}
+            <div className="space-y-8">
+              <div>
+                <h2 className="mb-4 text-lg font-semibold text-foreground">Today&apos;s Schedule</h2>
+                <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-6">
+                  <TodaysBells bells={todaysBells} />
+                </div>
+              </div>
 
-          {/* Right Column - Schedules & Micro:bit */}
-          <div className="space-y-6">
-            <ScheduleList
-              schedules={schedules}
-              onAddSchedule={addSchedule}
-              onUpdateSchedule={updateSchedule}
-              onDeleteSchedule={deleteSchedule}
-              onSelectSchedule={setSelectedScheduleId}
-              onSetActive={setActiveSchedule}
-            />
-            <ESP32Info
-              isConnected={esp32.isConnected}
-              portName={esp32.portName}
-              onConnect={esp32.connect}
-              isConnecting={esp32.isConnecting}
-              error={esp32.error}
-            />
+              <div>
+                <h2 className="mb-4 text-lg font-semibold text-foreground">Bell Editor</h2>
+                <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-6">
+                  <BellEditor
+                    schedule={selectedSchedule}
+                    onAddBell={addBellToSchedule}
+                    onUpdateBell={updateBellInSchedule}
+                    onDeleteBell={deleteBellFromSchedule}
+                    onReorderBells={reorderBellsInSchedule}
+                    onTestBell={handleTestBell}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Schedules & Device Info */}
+            <div className="space-y-8">
+              <div>
+                <h2 className="mb-4 text-lg font-semibold text-foreground">Schedules</h2>
+                <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-6">
+                  <ScheduleList
+                    schedules={schedules}
+                    onAddSchedule={addSchedule}
+                    onUpdateSchedule={updateSchedule}
+                    onDeleteSchedule={deleteSchedule}
+                    onSelectSchedule={setSelectedScheduleId}
+                    onSetActive={setActiveSchedule}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h2 className="mb-4 text-lg font-semibold text-foreground">Device Connection</h2>
+                <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-6">
+                  <ESP32Info
+                    isConnected={esp32.isConnected}
+                    portName={esp32.portName}
+                    onConnect={esp32.connect}
+                    isConnecting={esp32.isConnecting}
+                    error={esp32.error}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </main>
