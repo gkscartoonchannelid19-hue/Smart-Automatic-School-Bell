@@ -1,13 +1,13 @@
 # Smart-Automatic-School-Bell
 
-An intelligent, web-based automatic school bell system with BBC Micro:bit integration. Manage bell schedules, automate bell ringing, and control physical bells through a modern web interface.
+An intelligent, web-based automatic school bell system with ESP-32 integration. Manage bell schedules, automate bell ringing, and control physical bells through a modern web interface.
 
 ## Features
 
 - 🕐 **Automatic Bell Scheduling** - Create and manage multiple bell schedules for different days
 - 📱 **Modern Web Interface** - Beautiful, responsive UI built with Next.js and React
-- 🔌 **BBC Micro:bit Integration** - Connect and control physical bells via Bluetooth
-- 🔊 **Audio Fallback** - Plays audio bell when Micro:bit is not connected
+- 🔌 **ESP-32 Integration** - Connect and control physical bells via Web Serial API
+- 🔊 **Audio Fallback** - Plays audio bell when ESP-32 is not connected
 - ⚙️ **Flexible Configuration** - Customize bell times, durations, and schedules
 - 💾 **Local Storage** - All schedules and settings saved locally in your browser
 - 🌓 **Dark Mode Support** - Beautiful dark and light themes
@@ -15,8 +15,8 @@ An intelligent, web-based automatic school bell system with BBC Micro:bit integr
 ## Prerequisites
 
 - **Node.js** 18+ and **pnpm** (or npm/yarn)
-- **Chrome or Edge browser** (for Web Bluetooth API support)
-- **BBC Micro:bit** (optional - for physical bell control)
+- **Chrome, Edge, or Opera browser** (for Web Serial API support)
+- **ESP-32 development board** (optional - for physical bell control)
 
 ## Quick Start
 
@@ -49,67 +49,47 @@ pnpm build
 pnpm start
 ```
 
-## BBC Micro:bit Setup
+## ESP-32 Setup
 
 ### Hardware Requirements
 
-- BBC Micro:bit v2 (recommended) or v1
-- Relay module or buzzer connected to Pin 0
+- ESP-32 development board (any variant)
+- USB cable (USB-C or Micro-USB depending on variant)
+- Relay module or buzzer connected to GPIO5
 - Power supply for the relay/buzzer
 
 ### Software Setup
 
-1. **Flash the MicroPython code to your Micro:bit:**
+1. **Install Arduino IDE and ESP-32 Board Support:**
 
-   - Open the [MicroPython Editor](https://python.microbit.org/)
-   - Copy the code from the Micro:bit Info panel in the web interface (or see below)
-   - Flash it to your Micro:bit
+   - Download [Arduino IDE](https://www.arduino.cc/en/software)
+   - Add ESP-32 board URL in Preferences: `https://dl.espressif.com/dl/package_esp32_index.json`
+   - Install ESP-32 board via Board Manager
 
-2. **MicroPython Code:**
+2. **Flash the Arduino code to your ESP-32:**
 
-```python
-from microbit import *
-import radio
-
-# Enable UART over Bluetooth
-uart.init(baudrate=115200)
-
-while True:
-    # Check for incoming commands
-    if uart.any():
-        data = uart.readline()
-        if data:
-            command = str(data, 'utf-8').strip()
-            if command.startswith("RING:"):
-                duration = int(command.split(":")[1])
-                # Ring the bell (use pin0 for relay/buzzer)
-                for i in range(duration * 2):
-                    pin0.write_digital(1)
-                    display.show(Image.HEART)
-                    sleep(250)
-                    pin0.write_digital(0)
-                    display.clear()
-                    sleep(250)
-                uart.write("OK\n")
-    sleep(100)
-```
+   - Connect ESP-32 via USB
+   - Copy the code from the ESP-32 Info panel in the web interface
+   - Paste into Arduino IDE, modify WiFi credentials
+   - Select Board: `ESP32 Dev Module` (or your variant)
+   - Click Upload to flash the code
 
 3. **Connect in the Web Interface:**
 
-   - Open the application in Chrome or Edge
-   - Click "Connect" in the Micro:bit Info panel
-   - Select your Micro:bit from the Bluetooth device list
+   - Open the application in Chrome, Edge, or Opera
+   - Click "Connect" in the ESP-32 Info panel
+   - Select your ESP-32 from the serial port list
    - The connection status will update when successful
 
 ### Hardware Wiring
 
 ```
-Micro:bit Pin 0 → Relay Module Input (or Buzzer +)
+ESP-32 GPIO5 → Relay Module Input (or Buzzer +)
 GND → Relay Module GND (or Buzzer -)
-3V → Relay Module VCC (if needed)
+3.3V → Relay Module VCC (if needed)
 ```
 
-**Note:** For production use, use a relay module to control a larger bell or buzzer system. The Micro:bit can only provide limited current.
+**Note:** Use a relay module to control larger bells or buzzers. The ESP-32 GPIO can only provide limited current (up to 12mA per pin).
 
 ## Usage Guide
 
@@ -157,11 +137,11 @@ Click the settings icon in the header to:
 │   ├── bell-editor.tsx   # Bell schedule editor
 │   ├── clock-display.tsx # Clock and countdown
 │   ├── header.tsx        # App header
-│   ├── microbit-info.tsx # Micro:bit connection UI
+│   ├── esp32-info.tsx    # ESP-32 connection UI
 │   ├── schedule-list.tsx # Schedule management
 │   └── ...
 ├── hooks/                 # Custom React hooks
-│   ├── use-microbit.ts   # Micro:bit Bluetooth connection
+│   ├── use-esp32.ts      # ESP-32 Web Serial connection
 │   └── use-school-bell-store.ts # State management
 ├── lib/                   # Utilities and types
 │   ├── types.ts          # TypeScript type definitions
@@ -175,33 +155,35 @@ Click the settings icon in the header to:
 - **Styling**: Tailwind CSS
 - **UI Components**: Radix UI
 - **State Management**: Zustand (via custom hook)
-- **Bluetooth**: Web Bluetooth API
+- **Serial Communication**: Web Serial API
 - **Language**: TypeScript
 
 ## Browser Compatibility
 
-- ✅ Chrome 56+ (recommended)
-- ✅ Edge 79+
-- ⚠️ Firefox (no Web Bluetooth support - audio fallback only)
-- ⚠️ Safari (no Web Bluetooth support - audio fallback only)
+- ✅ Chrome 89+ (recommended)
+- ✅ Edge 89+
+- ✅ Opera 76+
+- ⚠️ Firefox (no Web Serial support - audio fallback only)
+- ⚠️ Safari (no Web Serial support - audio fallback only)
 
 ## Troubleshooting
 
-### Micro:bit Won't Connect
+### ESP-32 Won't Connect
 
-1. **Check Browser**: Ensure you're using Chrome or Edge
-2. **Check Micro:bit**: Make sure it's powered on and the code is flashed
-3. **Check Bluetooth**: Ensure Bluetooth is enabled on your computer
-4. **Check Pairing**: The Micro:bit should appear as "BBC micro:bit" in the device list
-5. **Try Again**: Close and reopen the browser, then try connecting again
+1. **Check Browser**: Ensure you're using Chrome, Edge, or Opera
+2. **Check ESP-32**: Make sure it's powered on and the code is flashed
+3. **Check USB Cable**: Ensure USB cable is properly connected
+4. **Check Driver**: Install CP2102 USB driver if ESP-32 doesn't appear in port list
+5. **Try Again**: Close other serial apps (Arduino IDE), refresh browser, and try connecting again
 
 ### Bells Not Ringing
 
 1. **Check Schedule**: Ensure a schedule is active and includes today
 2. **Check Time**: Verify the bell time is correct (24-hour format)
 3. **Check Enabled**: Make sure the bell is enabled (toggle switch)
-4. **Check Connection**: If using Micro:bit, verify it's connected
-5. **Check Audio**: If not using Micro:bit, check your system volume
+4. **Check Connection**: If using ESP-32, verify it's connected
+5. **Check Hardware**: Verify relay/buzzer is wired correctly to GPIO5
+6. **Check Audio**: If not using ESP-32, check your system volume
 
 ### Development Issues
 

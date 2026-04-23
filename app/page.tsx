@@ -6,11 +6,11 @@ import { ClockDisplay } from "@/components/clock-display"
 import { ScheduleList } from "@/components/schedule-list"
 import { BellEditor } from "@/components/bell-editor"
 import { TodaysBells } from "@/components/todays-bells"
-import { MicrobitInfo } from "@/components/microbit-info"
+import { ESP32Info } from "@/components/esp32-info"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { BellAlert } from "@/components/bell-alert"
 import { useSchoolBellStore } from "@/hooks/use-school-bell-store"
-import { useMicrobit } from "@/hooks/use-microbit"
+import { useESP32 } from "@/hooks/use-esp32"
 import type { BellEvent } from "@/lib/types"
 
 export default function SchoolBellApp() {
@@ -30,7 +30,7 @@ export default function SchoolBellApp() {
     getActiveSchedule,
   } = useSchoolBellStore()
 
-  const microbit = useMicrobit()
+  const esp32 = useESP32()
 
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -66,12 +66,12 @@ export default function SchoolBellApp() {
     async (bell: BellEvent) => {
       setRingingBell(bell)
 
-      // Send command to Micro:bit if connected
-      if (microbit.isConnected) {
-        await microbit.ringBell(bell.duration)
+      // Send command to ESP-32 if connected
+      if (esp32.isConnected) {
+        await esp32.ringBell(bell.duration)
       }
     },
-    [microbit]
+    [esp32]
   )
 
   const handleTestBell = useCallback(
@@ -85,11 +85,11 @@ export default function SchoolBellApp() {
       }
       setRingingBell(testBell)
 
-      if (microbit.isConnected) {
-        await microbit.ringBell(duration)
+      if (esp32.isConnected) {
+        await esp32.ringBell(duration)
       }
     },
-    [microbit]
+    [esp32]
   )
 
   if (!isLoaded) {
@@ -107,12 +107,12 @@ export default function SchoolBellApp() {
     <div className="min-h-screen bg-background">
       <Header
         schoolName={settings.schoolName}
-        isConnected={microbit.isConnected}
-        deviceName={microbit.deviceName}
-        onConnect={microbit.connect}
-        onDisconnect={microbit.disconnect}
+        isConnected={esp32.isConnected}
+        deviceName={esp32.portName}
+        onConnect={esp32.connect}
+        onDisconnect={esp32.disconnect}
         onSettingsClick={() => setSettingsOpen(true)}
-        isConnecting={microbit.isConnecting}
+        isConnecting={esp32.isConnecting}
       />
 
       <main className="container mx-auto px-4 py-6">
@@ -149,12 +149,12 @@ export default function SchoolBellApp() {
               onSelectSchedule={setSelectedScheduleId}
               onSetActive={setActiveSchedule}
             />
-            <MicrobitInfo
-              isConnected={microbit.isConnected}
-              deviceName={microbit.deviceName}
-              onConnect={microbit.connect}
-              isConnecting={microbit.isConnecting}
-              error={microbit.error}
+            <ESP32Info
+              isConnected={esp32.isConnected}
+              portName={esp32.portName}
+              onConnect={esp32.connect}
+              isConnecting={esp32.isConnecting}
+              error={esp32.error}
             />
           </div>
         </div>
@@ -170,7 +170,7 @@ export default function SchoolBellApp() {
       <BellAlert
         bell={ringingBell}
         onDismiss={() => setRingingBell(null)}
-        isConnectedToMicrobit={microbit.isConnected}
+        isConnectedToMicrobit={esp32.isConnected}
       />
     </div>
   )

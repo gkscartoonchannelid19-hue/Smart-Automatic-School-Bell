@@ -23,8 +23,8 @@ export interface SchoolSettings {
   breakDuration: number // minutes
 }
 
-export interface MicrobitConnection {
+export interface ESP32Connection {
   isConnected: boolean
-  deviceName: string | null
+  portName: string | null
   batteryLevel: number | null
 }
